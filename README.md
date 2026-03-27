@@ -143,6 +143,7 @@ node.display_sent()
 <img width="1204" height="609" alt="image" src="https://github.com/user-attachments/assets/20dcfcfe-12df-49d3-a185-3c781488b37b" />
 <img width="1209" height="617" alt="image" src="https://github.com/user-attachments/assets/2cf65a2f-b5cf-4b07-81ab-dbb45f1e70ad" />
 
+<img width="1118" height="389" alt="image" src="https://github.com/user-attachments/assets/0e61a09d-ca43-4226-af5e-7ba1b1e2255e" />
 
 
 ## 许可
