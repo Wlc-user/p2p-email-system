@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P邮件系统 - 测试页面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0369a1;
+        }
+        .data-display {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔒 P2P邮件系统 - API测试</h1>
+    
+    <div class="card">
+        <h2>1. API健康检查</h2>
+        <button onclick="testHealth()">测试健康检查</button>
+        <div id="health-result" class="status"></div>
+        <div id="health-data" class="data-display"></div>
+    </div>
+    
+    <div class="card">
+        <h2>2. 获取收件箱</h2>
+        <button onclick="testInbox()">获取收件箱</button>
+        <div id="inbox-result" class="status"></div>
+        <div id="inbox-data" class="data-display"></div>
+    </div>
+    
+    <div class="card">
+        <h2>3. 获取已发送</h2>
+        <button onclick="testSent()">获取已发送</button>
+        <div id="sent-result" class="status"></div>
+        <div id="sent-data" class="data-display"></div>
+    </div>
+    
+    <div class="card">
+        <h2>4. 获取联系人</h2>
+        <button onclick="testContacts()">获取联系人</button>
+        <div id="contacts-result" class="status"></div>
+        <div id="contacts-data" class="data-display"></div>
+    </div>
+    
+    <div class="card">
+        <h2>5. 发送邮件</h2>
+        <input type="text" id="recipient" placeholder="收件人节点ID" style="width:100%;margin-bottom:10px;padding:8px;">
+        <input type="text" id="subject" placeholder="主题" style="width:100%;margin-bottom:10px;padding:8px;">
+        <textarea id="body" placeholder="邮件正文" rows="4" style="width:100%;margin-bottom:10px;padding:8px;"></textarea>
+        <button onclick="testSendEmail()">发送测试邮件</button>
+        <div id="send-result" class="status"></div>
+    </div>
+    
+    <div class="card">
+        <h2>6. 添加联系人</h2>
+        <input type="text" id="contact-name" placeholder="联系人姓名" style="width:100%;margin-bottom:10px;padding:8px;">
+        <input type="text" id="contact-node" placeholder="节点ID" style="width:100%;margin-bottom:10px;padding:8px;">
+        <button onclick="testAddContact()">添加联系人</button>
+        <div id="contact-result" class="status"></div>
+    </div>
+    
+    <script>
+        const API_BASE = 'http://localhost:8102';
+        
+        async function testHealth() {
+            try {
+                const res = await fetch(`${API_BASE}/api/health`);
+                const data = await res.json();
+                showResult('health', true, JSON.stringify(data, null, 2));
+            } catch (err) {
+                showResult('health', false, err.message);
+            }
+        }
+        
+        async function testInbox() {
+            try {
+                const res = await fetch(`${API_BASE}/api/inbox`);
+                const data = await res.json();
+                showResult('inbox', data.success, JSON.stringify(data, null, 2));
+            } catch (err) {
+                showResult('inbox', false, err.message);
+            }
+        }
+        
+        async function testSent() {
+            try {
+                const res = await fetch(`${API_BASE}/api/sent`);
+                const data = await res.json();
+                showResult('sent', data.success, JSON.stringify(data, null, 2));
+            } catch (err) {
+                showResult('sent', false, err.message);
+            }
+        }
+        
+        async function testContacts() {
+            try {
+                const res = await fetch(`${API_BASE}/api/contacts`);
+                const data = await res.json();
+                showResult('contacts', data.success, JSON.stringify(data, null, 2));
+            } catch (err) {
+                showResult('contacts', false, err.message);
+            }
+        }
+        
+        async function testSendEmail() {
+            const recipient = document.getElementById('recipient').value || '707c12e8dd7dc34001e5dbe76aabaec89444440c';
+            const subject = document.getElementById('subject').value || '测试邮件';
+            const body = document.getElementById('body').value || '这是一封测试邮件';
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/test-add-email`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({recipient_id: recipient, subject, body})
+                });
+                const data = await res.json();
+                showResult('send', data.success, JSON.stringify(data, null, 2));
+            } catch (err) {
+                showResult('send', false, err.message);
+            }
+        }
+        
+        async function testAddContact() {
+            const name = document.getElementById('contact-name').value || '测试联系人';
+            const node_id = document.getElementById('contact-node').value || 'abc1234567890def1234567890abcdef12345678';
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/contacts`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, node_id, group: '测试'})
+                });
+                const data = await res.json();
+                showResult('contact', data.success, JSON.stringify(data, null, 2));
+            } catch (err) {
+                showResult('contact', false, err.message);
+            }
+        }
+        
+        function showResult(type, success, data) {
+            const resultDiv = document.getElementById(`${type}-result`);
+            const dataDiv = document.getElementById(`${type}-data`);
+            
+            resultDiv.className = `status ${success ? 'success' : 'error'}`;
+            resultDiv.textContent = success ? '✅ 成功' : '❌ 失败';
+            
+            if (dataDiv) {
+                dataDiv.textContent = data;
+            }
+        }
+        
+        // 页面加载时自动测试健康检查
+        window.onload = () => testHealth();
+    </script>
+</body>
+</html>

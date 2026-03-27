@@ -1,0 +1,41 @@
+{
+  "test_time": "2026-03-27 19:16:12",
+  "total_tests": 8,
+  "passed_tests": 8,
+  "failed_tests": 0,
+  "success_rate": "100.0%",
+  "test_results": [
+    {
+      "name": "健康检查",
+      "passed": true
+    },
+    {
+      "name": "用户注册",
+      "passed": true
+    },
+    {
+      "name": "用户登录",
+      "passed": true
+    },
+    {
+      "name": "发送邮件",
+      "passed": true
+    },
+    {
+      "name": "收件箱",
+      "passed": true
+    },
+    {
+      "name": "已发送",
+      "passed": true
+    },
+    {
+      "name": "垃圾邮件分析",
+      "passed": true
+    },
+    {
+      "name": "AI快捷回复",
+      "passed": true
+    }
+  ]
+}

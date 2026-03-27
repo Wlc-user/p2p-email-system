@@ -1712,14 +1712,382 @@ async def demo_p2p_email():
     print("你可以随时重新运行节点来加载已有邮件")
 
 
+
+# ============================================================
+# HTTP API 服务器 - 为前端提供RESTful接口
+# ============================================================
+
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
+import threading
+import sqlite3
+
+# 全局P2P节点实例
+p2p_node: Optional[P2PEmailNode] = None
+
+
+def init_database():
+    """初始化SQLite数据库"""
+    db_path = os.path.join(os.path.dirname(__file__), '../../mailbox/p2p_mail.db')
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+
+    # 创建表
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS contacts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            node_id TEXT UNIQUE NOT NULL,
+            name TEXT,
+            email TEXT,
+            group_name TEXT DEFAULT '',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    conn.commit()
+    return conn
+
+
+# 数据库连接
+db_conn = None
+
+
+class P2PAPIHandler(BaseHTTPRequestHandler):
+    """P2P邮件系统API处理器"""
+
+    def _set_headers(self, status_code=200, content_type='application/json'):
+        """设置HTTP响应头"""
+        self.send_response(status_code)
+        self.send_header('Content-type', content_type)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        self.send_header('Access-Control-Max-Age', '86400')
+        self.end_headers()
+
+    def do_OPTIONS(self):
+        """处理OPTIONS预检请求"""
+        self._set_headers(204)
+        self.wfile.write(b'')
+
+    def do_GET(self):
+        """处理GET请求"""
+        parsed_path = urlparse(self.path)
+        path = parsed_path.path
+
+        try:
+            # 健康检查
+            if path == '/api/health':
+                self._json_response({
+                    'success': True,
+                    'status': 'running',
+                    'node_id': p2p_node.node_id if p2p_node else None,
+                    'timestamp': time.time()
+                })
+                return
+
+            # 获取节点信息
+            elif path == '/api/node':
+                if p2p_node:
+                    self._json_response({
+                        'success': True,
+                        'data': {
+                            'node_id': p2p_node.node_id,
+                            'port': p2p_node.port,
+                            'inbox_count': len(p2p_node.mailbox.inbox),
+                            'sent_count': len(p2p_node.mailbox.sent),
+                            'unread_count': p2p_node.mailbox.get_unread_count(),
+                            'ice_candidates': [c.to_dict() for c in p2p_node.local_candidates],
+                            'public_key': p2p_node.pub_key.hex() if hasattr(p2p_node, 'pub_key') else None,
+                            'timestamp': time.time()
+                        }
+                    })
+                else:
+                    self._json_response({'success': False, 'error': '节点未启动'}, 500)
+                return
+
+            # 获取收件箱
+            elif path == '/api/inbox':
+                if p2p_node:
+                    inbox = p2p_node.mailbox.get_inbox()
+                    self._json_response({
+                        'success': True,
+                        'data': [msg.to_dict() for msg in inbox]
+                    })
+                else:
+                    self._json_response({'success': False, 'error': '节点未启动'}, 500)
+                return
+
+            # 获取已发送
+            elif path == '/api/sent':
+                if p2p_node:
+                    sent = p2p_node.mailbox.get_sent()
+                    self._json_response({
+                        'success': True,
+                        'data': [msg.to_dict() for msg in sent]
+                    })
+                else:
+                    self._json_response({'success': False, 'error': '节点未启动'}, 500)
+                return
+
+            # 获取联系人
+            elif path == '/api/contacts':
+                if db_conn:
+                    cursor = db_conn.execute('SELECT * FROM contacts ORDER BY created_at DESC')
+                    contacts = []
+                    for row in cursor:
+                        contact = dict(row)
+                        # 将 group_name 转换为 group（前端使用的字段名）
+                        contact['group'] = contact.get('group_name', '')
+                        contacts.append(contact)
+                    self._json_response({
+                        'success': True,
+                        'data': contacts
+                    })
+                else:
+                    self._json_response({'success': False, 'error': '数据库未初始化'}, 500)
+                return
+
+            # 未知路径
+            else:
+                self._json_response({'success': False, 'error': '未知路径'}, 404)
+
+        except Exception as e:
+            logger.error(f"GET请求处理错误: {e}")
+            self._json_response({'success': False, 'error': str(e)}, 500)
+
+    def do_POST(self):
+        """处理POST请求"""
+        parsed_path = urlparse(self.path)
+        path = parsed_path.path
+
+        try:
+            # 读取请求体
+            content_length = int(self.headers.get('Content-Length', 0))
+            post_data = self.rfile.read(content_length)
+            body = json.loads(post_data.decode('utf-8')) if content_length > 0 else {}
+
+            # 启动节点
+            if path == '/api/start':
+                global p2p_node, db_conn
+                if p2p_node:
+                    self._json_response({
+                        'success': True,
+                        'message': '节点已在运行',
+                        'data': {'node_id': p2p_node.node_id}
+                    })
+                else:
+                    try:
+                        # 创建新节点
+                        node = P2PEmailNode(seed="user@localhost", port=8000)
+                        asyncio.run(node.start())
+
+                        p2p_node = node
+                        db_conn = init_database()
+
+                        self._json_response({
+                            'success': True,
+                            'message': '节点启动成功',
+                            'data': {
+                                'node_id': node.node_id,
+                                'port': node.port
+                            }
+                        })
+                    except Exception as e:
+                        logger.error(f"启动节点失败: {e}")
+                        self._json_response({'success': False, 'error': str(e)}, 500)
+                return
+
+            # 发送邮件
+            if path == '/api/send-email':
+                if not p2p_node:
+                    self._json_response({'success': False, 'error': '节点未启动'}, 500)
+                    return
+
+                recipient_id = body.get('recipient_id')
+                subject = body.get('subject')
+                email_body = body.get('body')
+
+                if not all([recipient_id, subject, email_body]):
+                    self._json_response({'success': False, 'error': '缺少必要参数'}, 400)
+                    return
+
+                try:
+                    # 异步发送邮件
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    message_id = loop.run_until_complete(
+                        p2p_node.send_email(recipient_id, subject, email_body)
+                    )
+                    loop.close()
+
+                    self._json_response({
+                        'success': True,
+                        'message_id': message_id,
+                        'message': '邮件发送成功'
+                    })
+                except Exception as e:
+                    logger.error(f"邮件发送失败: {e}")
+                    self._json_response({'success': False, 'error': str(e)}, 500)
+                return
+
+            # 添加联系人
+            elif path == '/api/contacts':
+                if not db_conn:
+                    self._json_response({'success': False, 'error': '数据库未初始化'}, 500)
+                    return
+
+                node_id = body.get('node_id')
+                name = body.get('name', '')
+                email = body.get('email', '')
+                group_name = body.get('group', body.get('group_name', ''))
+
+                # 验证节点 ID 格式（40位十六进制）
+                if not node_id:
+                    self._json_response({'success': False, 'error': '缺少节点ID'}, 400)
+                    return
+
+                if len(node_id) != 40:
+                    self._json_response({'success': False, 'error': '节点ID必须是40位十六进制字符'}, 400)
+                    return
+
+                try:
+                    int(node_id, 16)  # 验证是否为十六进制
+                except ValueError:
+                    self._json_response({'success': False, 'error': '节点ID格式错误，必须是十六进制'}, 400)
+                    return
+
+                try:
+                    db_conn.execute(
+                        'INSERT OR REPLACE INTO contacts (node_id, name, email, group_name) VALUES (?, ?, ?, ?)',
+                        (node_id, name, email, group_name)
+                    )
+                    db_conn.commit()
+                    self._json_response({
+                        'success': True,
+                        'message': '联系人添加成功'
+                    })
+                except Exception as e:
+                    logger.error(f"添加联系人失败: {e}")
+                    self._json_response({'success': False, 'error': str(e)}, 500)
+                return
+
+            # 停止节点
+            elif path == '/api/stop':
+                self._json_response({
+                    'success': True,
+                    'message': '正在停止节点'
+                })
+                # 延迟停止，让响应发送完成
+                threading.Timer(1.0, stop_api_server).start()
+                return
+
+            # 未知路径
+            else:
+                self._json_response({'success': False, 'error': '未知路径'}, 404)
+
+        except Exception as e:
+            logger.error(f"POST请求处理错误: {e}")
+            self._json_response({'success': False, 'error': str(e)}, 500)
+
+    def _json_response(self, data, status_code=200):
+        """发送JSON响应"""
+        self._set_headers(status_code)
+        self.wfile.write(json.dumps(data, ensure_ascii=False).encode('utf-8'))
+
+    def log_message(self, format, *args):
+        """自定义日志"""
+        logger.info(f"[API] {self.address_string()} - {format % args}")
+
+
+# API服务器实例
+api_server = None
+api_thread = None
+
+
+def start_api_server(node: P2PEmailNode, host='127.0.0.1', port=8102):
+    """启动HTTP API服务器"""
+    global p2p_node, db_conn, api_server, api_thread
+
+    p2p_node = node
+    db_conn = init_database()
+
+    api_server = HTTPServer((host, port), P2PAPIHandler)
+    api_thread = threading.Thread(target=api_server.serve_forever, daemon=True)
+    api_thread.start()
+
+    logger.info(f"HTTP API服务器启动: http://{host}:{port}")
+    logger.info(f"  - /api/health      健康检查")
+    logger.info(f"  - /api/inbox       收件箱")
+    logger.info(f"  - /api/sent        已发送")
+    logger.info(f"  - /api/contacts    联系人")
+    logger.info(f"  - /api/send-email  发送邮件")
+    logger.info(f"  - /api/stop        停止服务")
+
+
+def stop_api_server():
+    """停止API服务器"""
+    global api_server, api_thread
+
+    if api_server:
+        api_server.shutdown()
+        api_server.server_close()
+        logger.info("[OK] HTTP API服务器已停止")
+
+    if api_thread:
+        api_thread.join(timeout=2)
+
+
+async def run_with_api():
+    """运行P2P节点并启动API服务器"""
+    # 创建P2P邮箱节点
+    node = P2PEmailNode(seed="user@localhost", port=8000)
+
+    # 启动P2P节点
+    await node.start()
+
+    # 启动HTTP API服务器
+    start_api_server(node)
+
+    logger.info("\n" + "="*60)
+    logger.info("P2P邮件系统已启动")
+    logger.info("  邮箱地址: " + node.node_id)
+    logger.info("  API地址:  http://localhost:8102")
+    logger.info("  前端地址: http://localhost:5173")
+    logger.info("="*60 + "\n")
+
+    # 保持运行
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        logger.info("\n正在停止...")
+        stop_api_server()
+        await node.stop()
+
+
 if __name__ == "__main__":
     import os
-    
+
     # 可以选择运行哪个演示
     import sys
-    
-    if len(sys.argv) > 1 and sys.argv[1] == "email":
-        asyncio.run(demo_p2p_email())
+
+    if len(sys.argv) > 1:
+        mode = sys.argv[1]
+        if mode == "email":
+            asyncio.run(demo_p2p_email())
+        elif mode == "api":
+            asyncio.run(run_with_api())
+        elif mode == "demo":
+            asyncio.run(demo_global_p2p())
+        else:
+            print(f"未知模式: {mode}")
+            print("可用模式: email, api, demo")
     else:
-        asyncio.run(demo_global_p2p())
+        # 默认运行API服务器模式
+        print("启动P2P邮件系统 (API模式)...")
+        asyncio.run(run_with_api())
+
 
