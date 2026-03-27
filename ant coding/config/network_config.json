@@ -1,0 +1,253 @@
+{
+  "network_simulation": {
+    "simulation_mode": "advanced",
+    "enable_proxy": true,
+    "enable_monitoring": true,
+    "log_level": "INFO",
+    
+    "network_topology": {
+      "domains": [
+        {
+          "name": "example1.com",
+          "host": "127.0.0.1",
+          "port": 8080,
+          "network_segment": "172.20.0.0/24",
+          "default_gateway": "172.20.0.1"
+        },
+        {
+          "name": "example2.com",
+          "host": "127.0.0.1",
+          "port": 8081,
+          "network_segment": "172.20.1.0/24",
+          "default_gateway": "172.20.1.1"
+        }
+      ],
+      "routing_table": [
+        {
+          "destination": "example1.com",
+          "gateway": "172.20.0.1",
+          "interface": "eth0"
+        },
+        {
+          "destination": "example2.com",
+          "gateway": "172.20.1.1",
+          "interface": "eth1"
+        }
+      ]
+    },
+    
+    "test_scenarios": {
+      "normal_operation": {
+        "description": "正常网络操作",
+        "duration": 300,
+        "parameters": {
+          "latency_ms": 0,
+          "packet_loss": 0.0,
+          "jitter_ms": 0
+        }
+      },
+      "network_partition": {
+        "description": "网络分区 - 两个域无法通信",
+        "duration": 120,
+        "parameters": {
+          "block_cross_domain": true,
+          "partition_duration": 60,
+          "recovery_time": 30
+        }
+      },
+      "high_latency": {
+        "description": "高延迟网络环境",
+        "duration": 180,
+        "parameters": {
+          "latency_ms": 500,
+          "jitter_ms": 100,
+          "packet_loss": 0.05
+        }
+      },
+      "packet_loss": {
+        "description": "高丢包率网络",
+        "duration": 150,
+        "parameters": {
+          "packet_loss": 0.2,
+          "latency_ms": 100,
+          "burst_loss_probability": 0.1
+        }
+      },
+      "server_failure": {
+        "description": "服务器故障场景",
+        "duration": 90,
+        "parameters": {
+          "failure_duration": 30,
+          "recovery_time": 15,
+          "failover_enabled": true
+        }
+      },
+      "gradual_degradation": {
+        "description": "网络逐步降级",
+        "duration": 300,
+        "parameters": {
+          "latency_steps": [100, 300, 500, 800],
+          "loss_steps": [0.0, 0.05, 0.15, 0.3],
+          "step_interval": 60
+        }
+      },
+      "rapid_recovery": {
+        "description": "快速故障恢复测试",
+        "duration": 150,
+        "parameters": {
+          "failure_cycles": 5,
+          "failure_duration": 10,
+          "recovery_interval": 15
+        }
+      }
+    },
+    
+    "monitoring": {
+      "interval_seconds": 5,
+      "metrics": [
+        "latency",
+        "packet_loss",
+        "throughput",
+        "error_rate",
+        "connection_count"
+      ],
+      "alert_thresholds": {
+        "high_latency_ms": 500,
+        "high_packet_loss": 0.2,
+        "high_error_rate": 0.1,
+        "low_throughput_mbps": 1.0
+      },
+      "alert_channels": [
+        "log",
+        "console",
+        "file"
+      ]
+    },
+    
+    "proxy_configuration": {
+      "enabled": true,
+      "proxy_ports": {
+        "domain1_to_domain2": 9000,
+        "domain2_to_domain1": 9001
+      },
+      "traffic_interception": {
+        "enabled": true,
+        "inspect_headers": true,
+        "log_payload": false,
+        "max_payload_size_kb": 10
+      },
+      "modification_rules": [
+        {
+          "name": "add_latency",
+          "enabled": true,
+          "match_pattern": "*",
+          "action": "delay",
+          "parameters": {
+            "delay_ms": 0,
+            "jitter_ms": 0
+          }
+        },
+        {
+          "name": "simulate_loss",
+          "enabled": false,
+          "match_pattern": "*",
+          "action": "drop",
+          "parameters": {
+            "probability": 0.0
+          }
+        }
+      ]
+    },
+    
+    "windows_specific": {
+      "loopback_adapter": {
+        "enabled": true,
+        "adapter_name": "MailTestAdapter",
+        "ip_addresses": [
+          "192.168.100.100/24",
+          "192.168.101.100/24"
+        ]
+      },
+      "firewall_rules": {
+        "enabled": true,
+        "ports": [8080, 8081, 9000, 9001],
+        "action": "allow",
+        "profiles": ["domain", "private", "public"]
+      },
+      "dns_configuration": {
+        "enabled": true,
+        "host_entries": [
+          {
+            "hostname": "mail-server-1",
+            "ip_address": "127.0.0.1"
+          },
+          {
+            "hostname": "mail-server-2",
+            "ip_address": "127.0.0.1"
+          },
+          {
+            "hostname": "example1.com",
+            "ip_address": "127.0.0.1"
+          },
+          {
+            "hostname": "example2.com",
+            "ip_address": "127.0.0.1"
+          }
+        ]
+      }
+    },
+    
+    "security_testing": {
+      "penetration_tests": [
+        {
+          "name": "cross_domain_access",
+          "description": "测试跨域数据访问",
+          "enabled": true
+        },
+        {
+          "name": "data_isolation",
+          "description": "测试数据隔离完整性",
+          "enabled": true
+        },
+        {
+          "name": "authentication_bypass",
+          "description": "测试认证绕过漏洞",
+          "enabled": true
+        },
+        {
+          "name": "session_hijacking",
+          "description": "测试会话劫持",
+          "enabled": true
+        }
+      ],
+      "compliance_checks": [
+        {
+          "standard": "GDPR",
+          "checks": [
+            "data_encryption_at_rest",
+            "data_encryption_in_transit",
+            "access_logging",
+            "data_portability"
+          ]
+        },
+        {
+          "standard": "HIPAA",
+          "checks": [
+            "audit_trails",
+            "access_controls",
+            "data_integrity",
+            "transmission_security"
+          ]
+        }
+      ]
+    },
+    
+    "reporting": {
+      "generate_reports": true,
+      "report_formats": ["json", "html", "markdown"],
+      "include_metrics": true,
+      "include_recommendations": true,
+      "report_directory": "./test_reports"
+    }
+  }
+}

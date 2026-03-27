@@ -1,0 +1,14 @@
+{
+    "domain": "example2.com",
+    "server_port": 8081,
+    "max_clients": 1000,
+    "data_path": "data/domain2",
+    "mail_storage_limit_mb": 1024,
+    "daily_send_limit": 100,
+    "session_timeout_minutes": 30,
+    "encryption_key": "domain2-secret-key-change-in-production",
+    "smtp_port": 2526,
+    "pop3_port": 1111,
+    "imap_port": 1431,
+    "admin_email": "admin@example2.com"
+}

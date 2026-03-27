@@ -1,0 +1,121 @@
+{
+  "security": {
+    "encryption_key": "your_secure_encryption_key_32_chars_minimum",
+    "jwt_secret": "your_secure_jwt_secret_32_chars_minimum",
+    "salt_length": 32,
+    
+    "login_security": {
+      "max_login_attempts": 5,
+      "login_lockout_minutes": 15,
+      "require_captcha_after_attempts": 3,
+      "session_timeout_minutes": 30,
+      "remember_me_days": 7
+    },
+    
+    "password_policy": {
+      "min_length": 8,
+      "require_lowercase": true,
+      "require_uppercase": true,
+      "require_digits": true,
+      "require_special_chars": true,
+      "prevent_common_passwords": true,
+      "password_history_size": 5,
+      "password_expiry_days": 90
+    },
+    
+    "rate_limits": {
+      "daily_send_limit": 100,
+      "rate_limit_per_minute": 60,
+      "rate_limit_per_hour": 360,
+      "min_send_interval_seconds": 2
+    },
+    
+    "attachment_security": {
+      "max_attachments_mb": 20,
+      "allowed_file_types": ["txt", "pdf", "doc", "docx", "xls", "xlsx", "jpg", "jpeg", "png", "gif", "zip", "rar"],
+      "scan_for_viruses": true,
+      "max_files_per_email": 5,
+      "block_executables": true
+    },
+    
+    "spam_protection": {
+      "spam_threshold": 0.7,
+      "phishing_patterns": [
+        "紧急", "密码", "账户", "验证", "登录", "安全", "警告", "异常", "冻结",
+        "解锁", "更新", "确认", "点击", "链接", "立即", "重要", "通知"
+      ],
+      "spam_keywords": [
+        "促销", "优惠", "免费", "获奖", "幸运", "抽奖", "折扣", "特价",
+        "赚钱", "投资", "贷款", "信用卡", "保险", "医疗", "药品"
+      ],
+      "check_sender_reputation": true,
+      "block_suspicious_domains": true
+    },
+    
+    "audit_logging": {
+      "audit_log_enabled": true,
+      "audit_db_path": "audit_logs/security_audit.db",
+      "retention_days": 365,
+      "log_failed_logins": true,
+      "log_successful_logins": true,
+      "log_security_events": true,
+      "log_suspicious_activity": true
+    },
+    
+    "network_security": {
+      "require_https": true,
+      "enable_cors": true,
+      "cors_allowed_origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+      "enable_rate_limiting": true,
+      "enable_ddos_protection": true,
+      "max_request_size_mb": 10,
+      "timeout_seconds": 30
+    },
+    
+    "token_security": {
+      "token_expiry_hours": 24,
+      "refresh_token_expiry_days": 7,
+      "max_active_tokens_per_user": 5,
+      "invalidate_on_password_change": true,
+      "require_token_for_all_operations": true
+    },
+    
+    "email_validation": {
+      "require_email_verification": true,
+      "verification_expiry_hours": 24,
+      "allow_disposable_emails": false,
+      "require_valid_domain": true,
+      "validate_mx_records": true
+    },
+    
+    "content_security": {
+      "sanitize_html": true,
+      "block_script_tags": true,
+      "block_inline_styles": true,
+      "limit_image_size": true,
+      "max_image_dimension": 1920,
+      "scan_for_malicious_content": true
+    },
+    
+    "compliance": {
+      "enable_gdpr_compliance": true,
+      "data_retention_days": 730,
+      "log_data_access": true,
+      "enable_data_encryption": true,
+      "enable_secure_deletion": true
+    },
+    
+    "monitoring": {
+      "enable_security_monitoring": true,
+      "alert_on_suspicious_activity": true,
+      "alert_thresholds": {
+        "failed_logins_per_hour": 10,
+        "unusual_location_logins": 3,
+        "multiple_device_logins": 5,
+        "high_frequency_requests": 100
+      },
+      "notification_channels": ["log", "email"],
+      "monitoring_interval_minutes": 5
+    }
+  }
+}

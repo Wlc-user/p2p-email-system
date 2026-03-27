@@ -1,0 +1,236 @@
+syntax = "proto3";
+
+package mail;
+
+// ==================== 基础消息类型 ====================
+
+message Empty {}
+
+// ==================== 邮件地址 ====================
+
+message MailAddress {
+    string username = 1;
+    string domain = 2;
+}
+
+// ==================== 邮件状态 ====================
+
+enum MailStatus {
+    DRAFT = 0;
+    SENT = 1;
+    DELIVERED = 2;
+    READ = 3;
+    WITHDRAWN = 4;
+    FORWARDED = 5;
+    ERROR = 6;
+}
+
+// ==================== 邮件对象 ====================
+
+message Mail {
+    string mail_id = 1;
+    MailAddress sender = 2;
+    repeated MailAddress recipients = 3;
+    string subject = 4;
+    string body = 5;
+    int64 timestamp = 6;  // Unix timestamp
+    MailStatus status = 7;
+    repeated string attachments = 8;
+    repeated MailAddress cc_recipients = 9;
+    repeated MailAddress bcc_recipients = 10;
+    MailAddress reply_to = 11;
+    repeated string references = 12;
+}
+
+// ==================== 用户信息 ====================
+
+message UserInfo {
+    string username = 1;
+    string email = 2;
+    string domain = 3;
+    int64 created_at = 4;
+}
+
+// ==================== 注册请求 ====================
+
+message RegisterRequest {
+    string username = 1;
+    string password = 2;
+    string email = 3;
+}
+
+message RegisterResponse {
+    bool success = 1;
+    string message = 2;
+    UserInfo user = 3;
+}
+
+// ==================== 登录请求 ====================
+
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+    string client_ip = 3;
+}
+
+message LoginResponse {
+    bool success = 1;
+    string message = 2;
+    string token = 3;
+    UserInfo user = 4;
+}
+
+// ==================== 登出请求 ====================
+
+message LogoutRequest {
+    string token = 1;
+}
+
+message LogoutResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// ==================== 发送邮件 ====================
+
+message SendMailRequest {
+    string token = 1;
+    Mail mail = 2;
+}
+
+message SendMailResponse {
+    bool success = 1;
+    string message = 2;
+    string mail_id = 3;
+}
+
+// ==================== 获取邮箱 ====================
+
+message GetMailboxRequest {
+    string token = 1;
+    string mailbox_type = 2;  // inbox, sent, drafts, etc.
+}
+
+message GetMailboxResponse {
+    bool success = 1;
+    string message = 2;
+    repeated Mail mails = 3;
+}
+
+// ==================== 撤回邮件 ====================
+
+message WithdrawMailRequest {
+    string token = 1;
+    string mail_id = 2;
+}
+
+message WithdrawMailResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// ==================== 搜索邮件 ====================
+
+message SearchMailRequest {
+    string token = 1;
+    string query = 2;
+    string search_type = 3;  // all, subject, body, sender
+}
+
+message SearchMailResponse {
+    bool success = 1;
+    string message = 2;
+    repeated Mail results = 3;
+}
+
+// ==================== 快速回复 ====================
+
+message QuickReplyRequest {
+    string token = 1;
+    string original_mail_id = 2;
+    string reply_text = 3;
+}
+
+message QuickReplyResponse {
+    bool success = 1;
+    string message = 2;
+    Mail reply_mail = 3;
+}
+
+// ==================== 群发邮件 ====================
+
+message GroupSendRequest {
+    string token = 1;
+    string group_id = 2;
+    Mail mail = 3;
+}
+
+message GroupSendResponse {
+    bool success = 1;
+    string message = 2;
+    string mail_id = 3;
+    int32 recipient_count = 4;
+}
+
+// ==================== 心跳检测 ====================
+
+message PingRequest {}
+
+message PongResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// ==================== 转发邮件（服务器间） ====================
+
+message ForwardMailRequest {
+    string token = 1;
+    Mail mail = 2;
+    string target_domain = 3;
+}
+
+message ForwardMailResponse {
+    bool success = 1;
+    string message = 2;
+}
+
+// ==================== 主服务接口 ====================
+
+service MailService {
+    // 用户认证
+    rpc Register(RegisterRequest) returns (RegisterResponse);
+    rpc Login(LoginRequest) returns (LoginResponse);
+    rpc Logout(LogoutRequest) returns (LogoutResponse);
+    
+    // 邮件操作
+    rpc SendMail(SendMailRequest) returns (SendMailResponse);
+    rpc GetMailbox(GetMailboxRequest) returns (GetMailboxResponse);
+    rpc WithdrawMail(WithdrawMailRequest) returns (WithdrawMailResponse);
+    rpc SearchMail(SearchMailRequest) returns (SearchMailResponse);
+    rpc QuickReply(QuickReplyRequest) returns (QuickReplyResponse);
+    
+    // 群组功能
+    rpc GroupSend(GroupSendRequest) returns (GroupSendResponse);
+    
+    // 系统维护
+    rpc Ping(PingRequest) returns (PongResponse);
+    
+    // 服务器间通信
+    rpc ForwardMail(ForwardMailRequest) returns (ForwardMailResponse);
+}
+
+// ==================== 流式接口 ====================
+
+// 实时接收新邮件
+message NewMailNotification {
+    Mail mail = 1;
+    int64 timestamp = 2;
+}
+
+service MailStreamService {
+    // 流式接收新邮件通知
+    rpc StreamNewMail(PingRequest) returns (stream NewMailNotification);
+    
+    // 流式同步邮箱状态
+    rpc StreamMailboxStatus(PingRequest) returns (stream GetMailboxResponse);
+}

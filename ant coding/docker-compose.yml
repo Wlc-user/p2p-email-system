@@ -1,0 +1,154 @@
+version: '3.8'
+
+services:
+  # Domain 1 Mail Server (example1.com)
+  mail-server-1:
+    build: .
+    container_name: mail-server-1
+    networks:
+      mail-network:
+        ipv4_address: 172.20.0.10
+    ports:
+      - "8080:8080"
+    environment:
+      DOMAIN: example1.com
+      PORT: 8080
+      DATA_DIR: /app/data/domain1
+      LOG_LEVEL: INFO
+      SERVER_TYPE: domain1
+    volumes:
+      - ./data/domain1:/app/data/domain1
+      - ./logs/server1:/app/logs
+      - ./config:/app/config
+    command: python server/main.py --domain example1.com --port 8080
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s = socket.socket(); s.connect(('localhost', 8080))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Domain 2 Mail Server (example2.com)
+  mail-server-2:
+    build: .
+    container_name: mail-server-2
+    networks:
+      mail-network:
+        ipv4_address: 172.20.0.11
+    ports:
+      - "8081:8081"
+    environment:
+      DOMAIN: example2.com
+      PORT: 8081
+      DATA_DIR: /app/data/domain2
+      LOG_LEVEL: INFO
+      SERVER_TYPE: domain2
+    volumes:
+      - ./data/domain2:/app/data/domain2
+      - ./logs/server2:/app/logs
+      - ./config:/app/config
+    command: python server/main.py --domain example2.com --port 8081
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s = socket.socket(); s.connect(('localhost', 8081))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Test Client for Domain 1
+  test-client-1:
+    build: .
+    container_name: test-client-1
+    networks:
+      mail-network:
+        ipv4_address: 172.20.0.100
+    depends_on:
+      mail-server-1:
+        condition: service_healthy
+    environment:
+      SERVER_URL: "http://mail-server-1:8080"
+      USERNAME: "testuser1"
+      PASSWORD: "TestPass123!"
+      DOMAIN: "example1.com"
+      TEST_MODE: "true"
+    volumes:
+      - ./logs/client1:/app/logs
+    command: python client/main.py --server http://mail-server-1:8080 --user testuser1
+    profiles:
+      - test
+
+  # Test Client for Domain 2
+  test-client-2:
+    build: .
+    container_name: test-client-2
+    networks:
+      mail-network:
+        ipv4_address: 172.20.0.101
+    depends_on:
+      mail-server-2:
+        condition: service_healthy
+    environment:
+      SERVER_URL: "http://mail-server-2:8081"
+      USERNAME: "testuser2"
+      PASSWORD: "TestPass123!"
+      DOMAIN: "example2.com"
+      TEST_MODE: "true"
+    volumes:
+      - ./logs/client2:/app/logs
+    command: python client/main.py --server http://mail-server-2:8081 --user testuser2
+    profiles:
+      - test
+
+  # Integration Test Runner
+  test-runner:
+    build: .
+    container_name: test-runner
+    networks:
+      mail-network:
+        ipv4_address: 172.20.0.200
+    depends_on:
+      mail-server-1:
+        condition: service_healthy
+      mail-server-2:
+        condition: service_healthy
+    environment:
+      SERVER1_URL: "http://mail-server-1:8080"
+      SERVER2_URL: "http://mail-server-2:8081"
+      TEST_DOMAIN1: "example1.com"
+      TEST_DOMAIN2: "example2.com"
+    volumes:
+      - ./logs/tests:/app/logs
+      - ./test_reports:/app/test_reports
+    command: python integration_test.py --full
+    profiles:
+      - test
+
+  # Network Simulator
+  network-simulator:
+    image: alpine:latest
+    container_name: network-simulator
+    networks:
+      mail-network:
+        ipv4_address: 172.20.0.254
+    cap_add:
+      - NET_ADMIN
+    command: >
+      sh -c "
+      echo 'Network simulator running...';
+      sleep infinity
+      "
+    profiles:
+      - test
+
+networks:
+  mail-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+volumes:
+  data-domain1:
+  data-domain2:
+  logs:

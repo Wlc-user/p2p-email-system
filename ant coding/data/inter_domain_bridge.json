@@ -1,0 +1,16 @@
+{
+  "domain1": {
+    "server": "example1.com",
+    "port": 8080,
+    "smtp_port": 2525,
+    "admin_email": "admin@example1.com"
+  },
+  "domain2": {
+    "server": "example2.com",
+    "port": 8081,
+    "smtp_port": 2526,
+    "admin_email": "admin@example2.com"
+  },
+  "bridge_started": 1774583364.7317095,
+  "status": "active"
+}

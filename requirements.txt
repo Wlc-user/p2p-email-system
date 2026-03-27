@@ -1,0 +1,8 @@
+# P2P Mail System Dependencies
+
+# Cryptography
+cryptography>=41.0.0
+
+# Optional (for development)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

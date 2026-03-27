@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # 域名1邮箱服务器
+  mail-server-1:
+    build: .
+    container_name: mail-server-1
+    ports:
+      - "8080:8080"
+    environment:
+      DOMAIN: example1.com
+      PORT: 8080
+      DATA_DIR: /app/data/domain1
+      LOG_LEVEL: INFO
+    volumes:
+      - ./data/domain1:/app/data/domain1
+      - ./logs/server1:/app/logs
+    command: python server/main.py --domain example1.com --port 8080 --log-level INFO
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s = socket.socket(); s.settimeout(2); s.connect(('localhost', 8080))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 域名2邮箱服务器
+  mail-server-2:
+    build: .
+    container_name: mail-server-2
+    ports:
+      - "8081:8081"
+    environment:
+      DOMAIN: example2.com
+      PORT: 8081
+      DATA_DIR: /app/data/domain2
+      LOG_LEVEL: INFO
+    volumes:
+      - ./data/domain2:/app/data/domain2
+      - ./logs/server2:/app/logs
+    command: python server/main.py --domain example2.com --port 8081 --log-level INFO
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s = socket.socket(); s.settimeout(2); s.connect(('localhost', 8081))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # 演示客户端（可选）
+  demo-client:
+    build: .
+    container_name: demo-client
+    depends_on:
+      - mail-server-1
+      - mail-server-2
+    environment:
+      SERVER1_URL: http://mail-server-1:8080
+      SERVER2_URL: http://mail-server-2:8081
+    volumes:
+      - ./logs/demo:/app/logs
+    command: python integration_test.py --demo
+    profiles:
+      - demo
+
+  # 成本优化演示（可选）
+  cost-demo:
+    build: .
+    container_name: cost-demo
+    depends_on:
+      - mail-server-1
+      - mail-server-2
+    environment:
+      DEMO_MODE: "true"
+    volumes:
+      - ./logs/cost_demo:/app/logs
+      - ./test_reports:/app/test_reports
+    command: python cost_optimizer/demo_system.py
+    profiles:
+      - demo
