@@ -1,4 +1,4 @@
-# P2P Global Email System
+<img width="1308" height="822" alt="image" src="https://github.com/user-attachments/assets/0b1b9059-7e71-475b-a59e-479f2e6a895c" /># P2P Global Email System
 
 全球P2P邮箱系统 - 无需中心服务器的端到端加密邮件系统
 
@@ -134,6 +134,16 @@ node.display_sent()
 - 确保已交换密钥
 - 检查对方节点是否在线
 - 查看DHT中是否有对方节点
+
+<img width="1356" height="817" alt="image" src="https://github.com/user-attachments/assets/30ac909d-5536-4f01-a133-1a5498004473" />
+<img width="1316" height="767" alt="image" src="https://github.com/user-attachments/assets/9b1ec665-b8d2-473b-9adb-a75df7acba3b" />
+<img width="1324" height="800" alt="image" src="https://github.com/user-attachments/assets/6c56ba30-c98a-440a-b5f1-202b290c330b" />
+<img width="1308" height="822" alt="image" src="https://github.com/user-attachments/assets/97c77303-539a-4c8e-9cec-8967e31dff6c" />
+<img width="1324" height="803" alt="image" src="https://github.com/user-attachments/assets/877a58f2-f3d8-4e5b-b958-aa35b9580cee" />
+<img width="1204" height="609" alt="image" src="https://github.com/user-attachments/assets/20dcfcfe-12df-49d3-a185-3c781488b37b" />
+<img width="1209" height="617" alt="image" src="https://github.com/user-attachments/assets/2cf65a2f-b5cf-4b07-81ab-dbb45f1e70ad" />
+
+
 
 ## 许可
 
